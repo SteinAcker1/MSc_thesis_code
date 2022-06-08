@@ -1,0 +1,190 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(Seurat)
+library(tidyverse)
+library(ggpubr)
+library(viridis)
+
+theme_set(
+  theme(
+    axis.text.x.bottom = element_text(angle = 90),
+    panel.background = element_rect(fill = "white", colour = "grey50"),
+    panel.grid = element_line(color = "lightgray")
+  )
+)
+```
+
+
+```{r}
+samples <- list()
+samples[["NC"]] <- readRDS("/Users/steinacker/Masters_thesis_work/data/parkinsons/cortex_cond/parkinsons_ctx_NC.rds")
+samples[["PD"]] <- readRDS("/Users/steinacker/Masters_thesis_work/data/parkinsons/cortex_cond/parkinsons_ctx_PD.rds")
+outdir <- "/Users/steinacker/Masters_thesis_work/code_final/cortex_TEs/output/"
+if(!dir.exists(outdir)) dir.create(outdir)
+for(i in names(samples)) DefaultAssay(samples[[i]]) <- "RNA"
+```
+
+# Writing function to add cell types to samples
+```{r}
+AddCellTypes <- function(seurat_obj, cell_types_list) {
+  cell_types_df <- seurat_obj %>% 
+    FetchData("seurat_clusters") %>% 
+    mutate(cell_type = as.factor(cell_types_list[seurat_clusters])) %>%
+    dplyr::select(-seurat_clusters)
+  seurat_obj <- AddMetaData(seurat_obj, cell_types_df, col.name = "cell_type")
+  return(seurat_obj)
+}
+```
+
+# Assigning cell types
+```{r}
+neuronal <- c("MAP2", "DCX")
+excitatory <- c("RBFOX3", "GRIN1", "HS3ST2")
+inhibitory <- c("GAD1", "GAD2", "CALB2", "CNR1")
+astrocyte <- c("GFAP", "AQP4", "GJA1", "SLC1A3")
+oligodendrocyte <- c("PLP1", "MOG", "MBP")
+opc <- c("COL9A1", "VCAN", "PDGFRA")
+microglia <- c("P2RY12", "FYB1")
+endothelial <- c("FLT1", "PECAM1")
+all_markers <- c(
+  microglia,
+  excitatory,
+  inhibitory,
+  astrocyte,
+  oligodendrocyte,
+  opc,
+  neuronal,
+  endothelial
+)
+
+cell_types_list <- c(
+  "0" = "Oligodendrocytes",
+  "1" = "Oligodendrocytes",
+  "2" = "Oligodendrocytes",
+  "3" = "Inhib_neurons",
+  "4" = "Excit_neurons",
+  "5" = "Excit_neurons",
+  "6" = "Excit_neurons",
+  "7" = "Excit_neurons",
+  "8" = "Inhib_neurons",
+  "9" = "Astrocytes",
+  "10" = "Astrocytes",
+  "11" = "Astrocytes",
+  "12" = "Excit_neurons",
+  "13" = "Excit_neurons",
+  "14" = "Astrocytes",
+  "15" = "OPCs",
+  "16" = "Microglia",
+  "17" = "OPCs",
+  "18" = "Inhib_neurons",
+  "19" = "Inhib_neurons",
+  "20" = "Excit_neurons",
+  "21" = "Excit_neurons",
+  "22" = "Inhib_neurons",
+  "23" = "Inhib_neurons",
+  "24" = "Endothelial_cells"
+)
+samples[["NC"]] <- AddCellTypes(samples[["NC"]], cell_types_list)
+samples[["PD"]] <- AddCellTypes(samples[["PD"]], cell_types_list)
+for(i in names(samples)) samples[[i]] <- AddMetaData(samples[[i]], i, col.name = "diagnosis")
+```
+
+# Analyzing expression data
+```{r}
+fetched_metadata <- c(
+  "seurat_clusters",
+  "diagnosis",
+  "cell_type",
+  "UMAP_1",
+  "UMAP_2",
+  "orig.ident"
+  )
+L1s_of_interest <- c(
+  "L1HS:L1:LINE",
+  "L1PA2:L1:LINE",
+  "L1PA3:L1:LINE",
+  "L1PA4:L1:LINE"
+  )
+LTRs_of_interest <- c(
+  "LTR7:ERV1:LTR",
+  "LTR17:ERV1:LTR",
+  "LTR2:ERV1:LTR",
+  "LTR5-Hs:ERVK:LTR",
+  "LTR5B:ERVK:LTR"
+  )
+
+fetched_data_TE <- c(
+  L1s_of_interest,
+  LTRs_of_interest
+)
+
+cell_data <- data.frame(matrix(ncol = length(c(fetched_metadata, fetched_data_TE)), nrow = 0))
+colnames(cell_data) <- c(fetched_metadata, fetched_data_TE)
+for(i in samples) {
+  tmp <- FetchData(i, fetched_metadata)
+  DefaultAssay(i) <- "TE_norm_cluster_size"
+  tmp <- cbind(tmp, FetchData(i, fetched_data_TE))
+  cell_data <- rbind(cell_data, tmp)
+}
+cell_data <- mutate(cell_data, diagnosis = factor(diagnosis, levels = c("PD", "NC")))
+```
+
+## UMAP feature plots -- all cells
+```{r}
+for(i in fetched_data_TE) {
+  name <- str_split(i, ":")[[1]][1]
+  i <- paste0("`", i, "`")
+  ggplot(data = cell_data, mapping = aes_string(x = "UMAP_1", y = "UMAP_2", color = i)) +
+    geom_point(size = 0.15, shape = 3) +
+    scale_color_viridis(option = "cividis") +
+    facet_wrap(vars(diagnosis), nrow = 2) +
+    theme(strip.text.x = element_text(size = 12),
+        plot.title = element_text(size = 18)) +
+#    ggtitle("All cells")
+    ggtitle(paste(name, "— all cells"))
+  ggsave(filename = paste0(outdir, name, "_umap_all.png"), width = 5, height = 5, dpi = 500)
+}
+```
+
+# L1 Barplots
+```{r}
+cell_data_bar_L1s <- cell_data %>%
+  dplyr::select(-c("UMAP_1", "UMAP_2", "orig.ident")) %>%
+  unique() %>%
+  arrange(cell_type) %>%
+  mutate(cluster_celltype = as.factor(paste0(seurat_clusters, "_", cell_type))) %>%
+  pivot_longer(L1s_of_interest, names_to = "subfamily", values_to = "expression") %>%
+  mutate(subfamily = factor(subfamily, levels = L1s_of_interest))
+
+cell_data_bar_L1s$cluster_celltype <- factor(cell_data_bar_L1s$cluster_celltype, levels = unique(as.character(cell_data_bar_L1s$cluster_celltype)))
+
+
+ggplot(data = cell_data_bar_L1s, mapping = aes_string(x = "cluster_celltype", y = "expression", fill = "diagnosis")) +
+  geom_col(position = "dodge") +
+  labs(y = "N reads per cluster / N cells per cluster") +
+  facet_wrap(facets = vars(subfamily), ncol = 1)
+ggsave(filename = paste0(outdir, "L1s_bars.png"), width = 6, height = 7, dpi = 500)
+```
+
+# LTR Barplots
+```{r}
+cell_data_bar_LTRs <- cell_data %>%
+  dplyr::select(-c("UMAP_1", "UMAP_2", "orig.ident")) %>%
+  unique() %>%
+  arrange(cell_type) %>%
+  mutate(cluster_celltype = as.factor(paste0(seurat_clusters, "_", cell_type))) %>%
+  pivot_longer(LTRs_of_interest, names_to = "subfamily", values_to = "expression")
+
+cell_data_bar_LTRs$cluster_celltype <- factor(cell_data_bar_LTRs$cluster_celltype, levels = unique(as.character(cell_data_bar_LTRs$cluster_celltype)))
+
+
+ggplot(data = cell_data_bar_LTRs, mapping = aes_string(x = "cluster_celltype", y = "expression", fill = "diagnosis")) +
+  geom_col(position = "dodge") +
+  labs(y = "N reads per cluster / N cells per cluster") +
+  facet_wrap(facets = vars(subfamily), ncol = 1)
+ggsave(filename = paste0(outdir, "LTRs_bars.png"), width = 6, height = 7, dpi = 500)
+```

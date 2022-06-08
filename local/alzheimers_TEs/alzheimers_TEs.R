@@ -1,0 +1,146 @@
+#' ---
+#' title: "R Notebook"
+#' output: html_notebook
+#' ---
+#' 
+## -----------------------------------------------------------------------------
+library(Seurat)
+library(viridis)
+library(tidyverse)
+
+theme_set(
+  theme(
+    axis.text.x.bottom = element_text(angle = 90),
+    panel.background = element_rect(fill = "white", colour = "grey50"),
+    panel.grid = element_line(color = "lightgray")
+  )
+)
+
+#' 
+## -----------------------------------------------------------------------------
+samples <- list()
+files <- list.files(path = "/Users/steinacker/Masters_thesis_work/data/alzheimers/cond", full.names = TRUE)
+outdir <- "/Users/steinacker/Masters_thesis_work/code_final/alzheimers_TEs/output/"
+if(!dir.exists(outdir)) dir.create(outdir)
+for(i in names(samples)) DefaultAssay(samples[[i]]) <- "RNA"
+
+#' 
+#' # Adding cell types
+## -----------------------------------------------------------------------------
+cell_types_list <- c(
+  "0" = "Oligodendrocytes",
+  "1" = "Excit_neurons",
+  "2" = "Astrocytes",
+  "3" = "OPCs",
+  "4" = "Inhib_neurons",
+  "5" = "Inhib_neurons",
+  "6" = "Excit_neurons",
+  "7" = "Excit_neurons",
+  "8" = "Microglia",
+  "9" = "Excit_neurons",
+  "10" = "Excit_neurons",
+  "11" = "Excit_neurons",
+  "12" = "Endothelial_cells",
+  "13" = "Excit_neurons"
+)
+
+#' 
+#' # Performing initial file handling
+## -----------------------------------------------------------------------------
+fetched_metadata <- c(
+  "seurat_clusters",
+  "UMAP_1",
+  "UMAP_2",
+  "orig.ident"
+  )
+L1s_of_interest <- c(
+  "L1HS:L1:LINE",
+  "L1PA2:L1:LINE",
+  "L1PA3:L1:LINE",
+  "L1PA4:L1:LINE"
+  )
+LTRs_of_interest <- c(
+  "LTR7:ERV1:LTR",
+  "LTR17:ERV1:LTR",
+  "LTR2:ERV1:LTR",
+  "LTR5-Hs:ERVK:LTR",
+  "LTR5B:ERVK:LTR"
+  )
+
+fetched_data_TE <- c(
+  L1s_of_interest,
+  LTRs_of_interest
+)
+
+cell_data <- data.frame(matrix(ncol = length(c(fetched_metadata, fetched_data_TE)) + 1, nrow = 0))
+colnames(cell_data) <- c("diagnosis", fetched_metadata, fetched_data_TE)
+for(i in files) {
+  diagnosis <- str_replace_all(i, "alzheimers_|\\.rds|.*/", "")
+  tmp_seurat <- readRDS(i)
+  DefaultAssay(tmp_seurat) <- "TE_norm_cluster_size"
+  tmp_df <- FetchData(tmp_seurat, c(fetched_metadata, fetched_data_TE))
+  rm(tmp_seurat)
+  tmp_df$diagnosis <- as.factor(diagnosis)
+  cell_data <- rbind(cell_data, tmp_df)
+}
+cell_data$cell_type <- cell_types_list[cell_data$seurat_clusters]
+
+#' 
+#' # Adding diagnosis data
+## -----------------------------------------------------------------------------
+for(i in names(samples)) samples[[i]] <- AddMetaData(samples[[i]], i, col.name = "diagnosis")
+
+#' 
+#' # Colored UMAPs
+## -----------------------------------------------------------------------------
+for(i in fetched_data_TE) {
+  name <- str_split(i, ":")[[1]][1]
+  i <- paste0("`", i, "`")
+  ggplot(data = cell_data, mapping = aes_string(x = "UMAP_1", y = "UMAP_2", color = i)) +
+    geom_point(size = 0.15, shape = 3) +
+    scale_color_viridis(option = "cividis") +
+    facet_wrap(vars(diagnosis), nrow = 2) +
+    theme(strip.text.x = element_text(size = 12),
+        plot.title = element_text(size = 18)) +
+    ggtitle(paste(name, "— all cells"))
+  ggsave(filename = paste0(outdir, name, "_umap_all.png"), width = 5, height = 5, dpi = 500)
+}
+
+#' 
+#' # L1 Barplots
+## -----------------------------------------------------------------------------
+cell_data_bar_L1s <- cell_data %>%
+  dplyr::select(-c("UMAP_1", "UMAP_2", "orig.ident")) %>%
+  unique() %>%
+  arrange(cell_type) %>%
+  mutate(cluster_celltype = as.factor(paste0(seurat_clusters, "_", cell_type))) %>%
+  pivot_longer(L1s_of_interest, names_to = "subfamily", values_to = "expression")
+
+cell_data_bar_L1s$cluster_celltype <- factor(cell_data_bar_L1s$cluster_celltype, levels = unique(as.character(cell_data_bar_L1s$cluster_celltype)))
+
+
+ggplot(data = cell_data_bar_L1s, mapping = aes_string(x = "cluster_celltype", y = "expression", fill = "diagnosis")) +
+  geom_col(position = "dodge") +
+  labs(y = "N reads per cluster / N cells per cluster") +
+  facet_wrap(facets = vars(subfamily), ncol = 1)
+ggsave(filename = paste0(outdir, "L1s_bars.png"), width = 6, height = 7, dpi = 500)
+
+#' 
+#' # LTR Barplots
+## -----------------------------------------------------------------------------
+cell_data_bar_LTRs <- cell_data %>%
+  select(-c("UMAP_1", "UMAP_2", "orig.ident")) %>%
+  unique() %>%
+  arrange(cell_type) %>%
+  mutate(cluster_celltype = as.factor(paste0(seurat_clusters, "_", cell_type))) %>%
+  pivot_longer(LTRs_of_interest, names_to = "subfamily", values_to = "expression")
+
+cell_data_bar_LTRs$cluster_celltype <- factor(cell_data_bar_LTRs$cluster_celltype, levels = unique(as.character(cell_data_bar_LTRs$cluster_celltype)))
+
+
+ggplot(data = cell_data_bar_LTRs, mapping = aes_string(x = "cluster_celltype", y = "expression", fill = "diagnosis")) +
+  geom_col(position = "dodge") +
+  labs(y = "N reads per cluster / N cells per cluster") +
+  facet_wrap(facets = vars(subfamily), ncol = 1)
+ggsave(filename = paste0(outdir, "LTRs_bars.png"), width = 6, height = 7, dpi = 500)
+

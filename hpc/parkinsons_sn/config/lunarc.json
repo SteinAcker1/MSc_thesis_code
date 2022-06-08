@@ -1,0 +1,112 @@
+{
+  "__default__" :
+  {
+      "partition" : "lsens",    
+      "time" : "00:15:00",
+      "nodes" : 1,
+      "tasks-per-node" : 1,
+      "output" : "%j.out",
+      "error" : "%j.err",
+      "job-name" : "%j"
+  },
+  "quantify" :
+  {
+      "partition" : "lsens",
+      "time" : "15:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 15,
+      "output" : "%j.cellranger.out",
+      "error" : "%j.cellranger.err",
+      "job-name" : "%j.cellranger"
+  },
+  "aggregate" :
+  {
+      "partition" : "lsens",
+      "time" : "15:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 15,
+      "output" : "%j.aggregate.out",
+      "error" : "%j.aggregate.err",
+      "job-name" : "%j.aggregate"
+  },
+ "get_clusters" :
+  {
+      "partition" : "lsens",
+      "time" : "15:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 16,
+      "mem" : 190000,
+      "output" : "%j.seuratcluster.out",
+      "error" : "%j.seuratcluster.err",
+      "job-name" : "%j.seuratcluster"
+  },
+  "merge_samples" :
+  {
+      "partition" : "lsens",
+      "time" : "15:00:00",
+      "nodes" : 13,
+      "tasks-per-node" : 16,
+      "mem" : 190000,
+      "output" : "%j.seuratmerge.out",
+      "error" : "%j.seuratmerge.err",
+      "job-name" : "%j.seuratmerge"
+  },
+  "tsv_to_bam" :
+  {
+      "partition" : "lsens",
+      "time" : "5:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 16,
+      "mem" : 190000,
+      "output" : "%j.tsv_to_bam.out",
+      "error" : "%j.tsv_to_bam.err",
+      "job-name" : "%j.tsv_to_bam"
+  },
+  "filter_UMIs" :
+  {
+      "partition" : "lsens",
+      "time" : "15:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 16,
+      "mem" : 190000,
+      "output" : "%j.filter_UMIs.out",
+      "error" : "%j.filter_UMIs.err",
+      "job-name" : "%j.filter_UMIs"
+  },
+  "bam_to_fastq" :
+  {
+      
+      "partition" : "lsens",
+      "time" : "5:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 16,
+      "mem" : 190000,
+      "output" : "%j.bam_to_fastq.out",
+      "error" : "%j.bam_to_fastq.err",
+      "job-name" : "%j.bam_to_fastq"
+  },
+  "map_cluster" :
+  {
+      
+      "partition" : "lsens",
+      "time" : "1:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 16,
+      "mem" : 190000,
+      "output" : "%j.map_cluster.out",
+      "error" : "%j.map_cluster.err",
+      "job-name" : "%j.map_cluster"
+  },
+  "TE_count" :
+  {
+      
+      "partition" : "lsens",
+      "time" : "15:00:00",
+      "nodes" : 1,
+      "tasks-per-node" : 1,
+      "output" : "%j.TE_count.out",
+      "error" : "%j.TE_count.err",
+      "job-name" : "%j.TE_count"
+  }
+}
+
