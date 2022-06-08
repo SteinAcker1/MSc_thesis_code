@@ -59,7 +59,7 @@ Some of the filepaths used in the code are specific to my machine. You will need
 
 - `outdir`: Must be changed to a directory on your computer where you want the output deposited
 
-- `parkinsons_sn`, `parkinsons_ctx`, `alzheimers`, and `sample[[x]]`: Must be changed to the location where you saved the RData files from the previous phase, surrounded by `readRDS()`.
+- `parkinsons_sn`, `parkinsons_ctx`, `alzheimers`, and `sample[[x]]`: Must be changed to the location where you saved the RData files from the previous phase, surrounded by `readRDS()`. (Note: For `alzheimers_TEs`, the `files` variable plays a similar role and should be defined as a string filepath that leads to a directory containing both `alzheimers_AD.rds` and `alzheimers_NC.rds`.)
 
 All figures will be found in the location you defined as `outdir`.
 
